@@ -1,0 +1,30 @@
+name: mcp_celm
+description: CeLM — a guarded local execution loop over structured state that takes load off the planning LLM. Implements CelmPort from mcp_bundle.
+version: 0.1.0
+homepage: https://app-appplayer.github.io/makemind
+repository: https://github.com/app-appplayer/mcp_celm
+issue_tracker: https://github.com/app-appplayer/mcp_celm/issues
+
+topics:
+  - mcp
+  - ai
+  - automation
+  - dart
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  mcp_bundle: ^0.4.10
+
+dev_dependencies:
+  lints: ^6.1.0
+  test: ^1.31.2
+
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
