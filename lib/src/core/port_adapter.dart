@@ -50,8 +50,36 @@ class RoleAuthorizer implements CelmAuthorizer {
   }
 }
 
+/// One pack the adapter was given. Names and versions only — no content.
+class CelmPackInfo {
+  const CelmPackInfo({
+    required this.kind,
+    required this.id,
+    this.version,
+    required this.active,
+  });
+
+  /// `surface` or `domain`.
+  final String kind;
+  final String id;
+
+  /// As the pack declared it, or null.
+  final String? version;
+
+  /// Whether the loaded manifest uses this pack.
+  final bool active;
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind,
+        'id': id,
+        if (version != null) 'version': version,
+        'active': active,
+      };
+}
+
 class CelmPortAdapter implements CelmPort {
-  CelmPortAdapter._(this.runner, this.perception, this.authorizer);
+  CelmPortAdapter._(this.runner, this.perception, this.authorizer,
+      this._surfacePacks, this._domainPacks);
 
   /// The standard construction. Perception and actuators are required: a
   /// CeLM with no eyes and no hands has nothing to be. An interlock is
@@ -84,13 +112,38 @@ class CelmPortAdapter implements CelmPort {
       store: store ?? InMemoryCelmStore(),
       now: now,
     );
-    return CelmPortAdapter._(runner, perception, authorizer);
+    return CelmPortAdapter._(
+        runner, perception, authorizer, surfacePacks, domainPacks);
   }
   final CelmRunner runner;
   final CelmPerceptionPort perception;
   final CelmAuthorizer authorizer;
 
+  final Map<String, CelmSurfacePack> _surfacePacks;
+  final Map<String, CelmDomainPack> _domainPacks;
+
   CelmManifest get manifest => runner.manifest;
+
+  /// The packs this adapter was given, ordered by kind then id. Loads and
+  /// runs nothing.
+  List<CelmPackInfo> packs() {
+    List<CelmPackInfo> of(String kind, Map<String, dynamic> m, String active,
+            String? Function(dynamic) version) =>
+        [
+          for (final id in (m.keys.toList()..sort()))
+            CelmPackInfo(
+                kind: kind,
+                id: id,
+                version: version(m[id]),
+                active: id == active),
+        ];
+    return [
+      ...of('domain', _domainPacks, manifest.domain.id,
+          (p) => (p as CelmDomainPack).version),
+      ...of('surface', _surfacePacks, manifest.surface.id,
+          (p) => (p as CelmSurfacePack).version),
+    ];
+  }
 
   @override
   Future<CelmRunHandle> execute(

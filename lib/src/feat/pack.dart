@@ -24,6 +24,13 @@ T _enum<T extends Enum>(List<T> values, String kind, Object? raw, T? dflt) {
       {'kind': kind, 'value': raw});
 }
 
+String? _version(Object? raw) {
+  if (raw == null) return null;
+  if (raw is String && raw.isNotEmpty) return raw;
+  _packError('pack.bad_pack', 'A pack version must be a non-empty string',
+      {'version': raw});
+}
+
 String _snake(String s) =>
     s.replaceAllMapped(RegExp('[A-Z]'), (m) => '_${m.group(0)!.toLowerCase()}');
 
@@ -450,6 +457,7 @@ class CelmReasonerDef {
 class CelmSurfacePack {
   const CelmSurfacePack({
     required this.id,
+    this.version,
     required this.skills,
     required this.goals,
     this.intents = const {},
@@ -464,6 +472,7 @@ class CelmSurfacePack {
     if (id is! String || id.isEmpty) {
       _packError('pack.bad_pack', 'A pack needs an id');
     }
+    final version = _version(json['version']);
     final skills = <String, CelmSkill>{};
     for (final e in (json['skills'] as List<dynamic>?) ?? const []) {
       final s = CelmSkill.fromJson(e as Map<String, dynamic>);
@@ -482,6 +491,7 @@ class CelmSurfacePack {
     }
     final pack = CelmSurfacePack(
       id: id,
+      version: version,
       skills: skills,
       goals: goals,
       intents: ((json['intents'] as Map<String, dynamic>?) ?? const {})
@@ -491,6 +501,10 @@ class CelmSurfacePack {
     return pack;
   }
   final String id;
+
+  /// The version the author declared, or null. Recorded and reported,
+  /// never compared.
+  final String? version;
   final Map<String, CelmSkill> skills;
   final Map<String, CelmGoal> goals;
   final Map<String, String> intents;
@@ -531,7 +545,8 @@ class CelmSurfacePack {
 
   CelmSurfacePack withGoals(
           Map<String, CelmGoal> g, Map<String, CelmSkill> s) =>
-      CelmSurfacePack(id: id, skills: s, goals: g, intents: intents);
+      CelmSurfacePack(
+          id: id, version: version, skills: s, goals: g, intents: intents);
 }
 
 /// Golden references and the reasoner (D5b). Names descriptor fields
@@ -539,6 +554,7 @@ class CelmSurfacePack {
 class CelmDomainPack {
   const CelmDomainPack({
     required this.id,
+    this.version,
     required this.references,
     this.reasoner,
   });
@@ -558,6 +574,7 @@ class CelmDomainPack {
     if (id is! String || id.isEmpty) {
       _packError('pack.bad_pack', 'A pack needs an id');
     }
+    final version = _version(json['version']);
     final refs = <String, CelmReference>{};
     for (final e in (json['references'] as List<dynamic>?) ?? const []) {
       final m = e as Map<String, dynamic>;
@@ -595,9 +612,14 @@ class CelmDomainPack {
         rules: rules,
       );
     }
-    return CelmDomainPack(id: id, references: refs, reasoner: reasoner);
+    return CelmDomainPack(
+        id: id, version: version, references: refs, reasoner: reasoner);
   }
   final String id;
+
+  /// The version the author declared, or null. Recorded and reported,
+  /// never compared.
+  final String? version;
   final Map<String, CelmReference> references;
   final CelmReasonerDef? reasoner;
 

@@ -1,3 +1,23 @@
+## [0.1.1] - 2026-10-25
+
+### Added
+- A pack may declare a `version` (surface and domain). Absent loads as
+  before; a present value must be a non-empty string (`pack.bad_pack`).
+- `CelmPortAdapter.packs()` lists the supplied packs as `CelmPackInfo`
+  (kind, id, version, whether the manifest uses it).
+- A judged conclusion records the domain pack id and version it was made
+  with (needs the matching `mcp_bundle`).
+- `policy.gate_timeout_ms` (default 60000): the interlock is asked under a
+  time limit, and one that has not answered is not satisfied
+  (`Escalated(irreversibleGate)`).
+- `CelmContextualInterlock` and `CelmGateRequest`: an interlock may receive
+  the run id, goal, step, skill, resolved params and the deadline.
+  `McpInterlockAdapter` implements it and sends `context`, `timeoutMs` and
+  `deadline` besides its existing arguments. An interlock implementing only
+  `CelmInterlockPort.satisfied` is unchanged.
+- `validateObservationJson` lists how a perception tool's answer departs
+  from the perception contract, as `CelmObservationIssue`.
+
 ## [0.1.0] - 2026-09-04
 
 First release. Implements `CelmPort` (`mcp_bundle` 0.4.10).

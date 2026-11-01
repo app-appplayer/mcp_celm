@@ -89,10 +89,15 @@ class CelmPolicy {
     this.thetaPass = 0.85,
     this.thetaEscalate = 0.60,
     this.budget = const CelmBudgetSpec(),
+    this.gateTimeout = const Duration(seconds: 60),
   });
   final double thetaPass;
   final double thetaEscalate;
   final CelmBudgetSpec budget;
+
+  /// How long the interlock may take to answer before the gate treats it as
+  /// not satisfied.
+  final Duration gateTimeout;
 }
 
 /// A fully resolved manifest: nothing on it can fail to resolve later.
@@ -275,6 +280,8 @@ class CelmManifest {
         maxEscalations: (br['max_escalations'] as num?)?.toInt() ?? 3,
         wall: Duration(milliseconds: (br['wall_ms'] as num?)?.toInt() ?? 60000),
       ),
+      gateTimeout: Duration(
+          milliseconds: (pr['gate_timeout_ms'] as num?)?.toInt() ?? 60000),
     );
     if (policy.thetaPass < 0 ||
         policy.thetaPass > 1 ||
@@ -282,7 +289,8 @@ class CelmManifest {
         policy.thetaEscalate > policy.thetaPass ||
         policy.budget.attempts < 0 ||
         policy.budget.maxEscalations < 0 ||
-        policy.budget.wall <= Duration.zero) {
+        policy.budget.wall <= Duration.zero ||
+        policy.gateTimeout <= Duration.zero) {
       _bad('manifest.bad_policy', 'Policy values out of range');
     }
 

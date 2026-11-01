@@ -56,6 +56,50 @@ abstract class CelmInterlockPort {
   Future<bool> satisfied(CelmAction action, CelmObservation state);
 }
 
+/// One gate question with everything the party answering may need to show
+/// a person what is being approved, and until when the answer counts.
+class CelmGateRequest {
+  const CelmGateRequest({
+    required this.action,
+    required this.state,
+    required this.runId,
+    required this.goal,
+    required this.step,
+    required this.skill,
+    required this.params,
+    required this.timeout,
+    required this.deadline,
+  });
+  final CelmAction action;
+  final CelmObservation state;
+  final String runId;
+
+  /// Goal id.
+  final String goal;
+
+  /// Step id.
+  final String step;
+
+  /// Skill name.
+  final String skill;
+
+  /// The step's resolved params.
+  final Map<String, dynamic> params;
+
+  /// How long the runtime will wait (`policy.gate_timeout_ms`).
+  final Duration timeout;
+
+  /// When the runtime stops waiting: asked-at plus [timeout].
+  final DateTime deadline;
+}
+
+/// An interlock that is told why it is being asked. The loop calls [check]
+/// on one of these and `satisfied` on any other; the time limit applies to
+/// both.
+abstract class CelmContextualInterlock extends CelmInterlockPort {
+  Future<bool> check(CelmGateRequest request);
+}
+
 /// The safe default: an interlock that never opens. A manifest with an
 /// irreversible skill and no real interlock escalates every such step,
 /// which is the right thing for it to do.
@@ -141,7 +185,7 @@ class McpActuatorAdapter implements CelmActuatorPort {
 
 /// An interlock tool as a port: the tool answers `{ "satisfied": bool }`.
 /// Anything else is read as not satisfied.
-class McpInterlockAdapter implements CelmInterlockPort {
+class McpInterlockAdapter implements CelmContextualInterlock {
   const McpInterlockAdapter({
     required this.caller,
     required this.server,
@@ -156,6 +200,24 @@ class McpInterlockAdapter implements CelmInterlockPort {
     final r = await caller.call(server, tool, {
       'action': {'port': action.port, 'args': action.args},
       'at': state.at.toIso8601String(),
+    });
+    return r['satisfied'] == true;
+  }
+
+  @override
+  Future<bool> check(CelmGateRequest request) async {
+    final r = await caller.call(server, tool, {
+      'action': {'port': request.action.port, 'args': request.action.args},
+      'at': request.state.at.toIso8601String(),
+      'context': {
+        'runId': request.runId,
+        'goal': request.goal,
+        'step': request.step,
+        'skill': request.skill,
+        'params': request.params,
+      },
+      'timeoutMs': request.timeout.inMilliseconds,
+      'deadline': request.deadline.toUtc().toIso8601String(),
     });
     return r['satisfied'] == true;
   }

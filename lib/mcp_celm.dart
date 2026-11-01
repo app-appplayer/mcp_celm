@@ -60,6 +60,7 @@ export 'src/feat/pack.dart';
 export 'src/feat/reasoner.dart';
 
 // infra
+export 'src/infra/observation_check.dart';
 export 'src/infra/ports.dart';
 
 // mcp

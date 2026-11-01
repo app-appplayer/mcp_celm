@@ -333,10 +333,12 @@ class CelmRunner {
             return _refused(run, CelmRefusalReason.notPermitted,
                 'Irreversible action "${action.port}" is not in the allow-list');
           }
-          if (!await interlock!.satisfied(action, observed)) {
+          final open = await _gate(run, current, skill, stepParams, action,
+              observed);
+          if (open != null) {
             return _escalate(run, current,
                 CelmEscalationReason.irreversibleGate, const CelmDigest(), null,
-                why: 'interlock not satisfied for ${action.port}');
+                why: open);
           }
         }
       }
@@ -514,6 +516,36 @@ class CelmRunner {
     return null;
   }
 
+  /// Asks the interlock under the policy's time limit. Returns null when
+  /// it is satisfied, otherwise why the gate stays shut. An interlock that
+  /// has not answered in time is not satisfied.
+  Future<String?> _gate(_Run run, CelmStep step, CelmSkill skill,
+      Map<String, dynamic> params, CelmAction action,
+      CelmObservation observed) async {
+    final timeout = manifest.policy.gateTimeout;
+    final port = interlock!;
+    final question = port is CelmContextualInterlock
+        ? port.check(CelmGateRequest(
+            action: action,
+            state: observed,
+            runId: run.id,
+            goal: run.goal!.id,
+            step: step.id,
+            skill: skill.name,
+            params: params,
+            timeout: timeout,
+            deadline: now().add(timeout),
+          ))
+        : port.satisfied(action, observed);
+    try {
+      if (await question.timeout(timeout)) return null;
+    } on TimeoutException {
+      return 'interlock did not answer for ${action.port} within '
+          '${timeout.inMilliseconds} ms';
+    }
+    return 'interlock not satisfied for ${action.port}';
+  }
+
   /// Performs the skill's action sequence under its timeout. Returns a
   /// failure description, or null on success.
   Future<String?> _act(
@@ -615,6 +647,8 @@ class CelmRunner {
             confidence: r.confidence,
             reasoner: r.reasoner,
             reasonerRemote: r.remote,
+            pack: manifest.domain.id,
+            packVersion: manifest.domain.version,
             premises: premises,
             rationale: r.rationale,
           ));
